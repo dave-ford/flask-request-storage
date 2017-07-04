@@ -1,6 +1,6 @@
 import sqlite3
 from flask import Flask, g, render_template_string, request
-
+import os
 
 app = Flask(__name__)
 
@@ -17,9 +17,16 @@ def before_request():
 @app.route('/home', methods=['GET', 'PUT', 'POST', 'PATCH', 'DELETE'])
 def home():
     # Save request data in the DB
-    query = 'INSERT INTO request ("url", "method") VALUES (:url, :method);'
+    method = request.method
+    url = request.url
+    #print(method + ': ' + url)
+    query = 'INSERT INTO request ("url", "method") VALUES (?,?);'
     # Insert your code here.
     # get the URL and the method and store it in the Database
+    c = g.db.cursor()
+    c.execute(query, (url,method))
+    g.db.commit()
+    g.db.close()
     return 'Success', 200
 
 
@@ -27,6 +34,8 @@ def home():
 def dashboard():
     # Fetch all requests from the DB
     query = 'SELECT url, method FROM request;'
+    c = g.db.cursor()
+    result = c.execute(query)
 
     base_html = """
         <html>
@@ -39,14 +48,13 @@ def dashboard():
         </html>
     """
     # build these dictionaries out of the data retrieved from the database
-    total_requests = -1
-    total_per_method = {
-        'GET': -1,
-        'POST': -1,
-        'PUT': -1,
-        'PATCH': -1,
-        'DELETE': -1,
-    }
+    
+    d = result.fetchall()
+    
+    total_requests = len(d)
+    methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+    total_per_method = {m:len([elem for elem in d if elem[1] == m]) for m in methods} 
+
 
     return render_template_string(
         base_html,
